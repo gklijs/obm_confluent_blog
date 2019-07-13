@@ -1,0 +1,74 @@
+spring.cloud.stream:
+  kafka:
+    binder:
+      auto-add-partitions: false
+      auto-create-topics: false
+    streams:
+      bindings:
+        cac:
+          consumer:
+            keySerde: org.apache.kafka.common.serialization.Serdes$StringSerde
+            valueSerde: io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde
+            applicationId: cac
+        acf:
+          producer:
+            keySerde: org.apache.kafka.common.serialization.Serdes$StringSerde
+            valueSerde: io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde
+        cmt:
+          consumer:
+            keySerde: org.apache.kafka.common.serialization.Serdes$StringSerde
+            valueSerde: io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde
+            applicationId: cmt
+        mtf:
+          producer:
+            keySerde: org.apache.kafka.common.serialization.Serdes$StringSerde
+            valueSerde: io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde
+        bach:
+          producer:
+            keySerde: org.apache.kafka.common.serialization.Serdes$StringSerde
+            valueSerde: io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde
+      binder:
+        brokers: ["localhost"]
+        configuration:
+          auto.offset.reset: earliest
+          schema.registry.url: http://localhost:8081
+          auto.register.schemas: false
+          producer.acks: all
+          value.subject.name.strategy: io.confluent.kafka.serializers.subject.TopicRecordNameStrategy
+  default:
+    consumer:
+      useNativeDecoding: true
+    producer:
+      useNativeEncoding: true
+  bindings:
+    cac:
+      destination: confirm_account_creation
+      group: account-creation
+    acf:
+      destination: account_creation_feedback
+    cmt:
+      destination: confirm_money_transfer
+      group: money-transfer
+    mtf:
+      destination: money_transfer_feedback
+    bach:
+      destination: balance_changed
+
+# postgres database
+spring.datasource:
+  url: jdbc:postgresql://localhost:5432/balancedb
+  username: kotlin_ch
+  password: open-bank
+  driver-class-name: org.postgresql.Driver
+
+# jpa
+spring.jpa:
+  open-in-view: false
+  generate-ddl: true
+  database-platform: org.hibernate.dialect.PostgreSQLDialect
+  properties:
+    hibernate:
+      temp:
+        use_jdbc_metadata_defaults: false
+#logging.level.org.apache.kafka: debug
+logging.level.root: info
