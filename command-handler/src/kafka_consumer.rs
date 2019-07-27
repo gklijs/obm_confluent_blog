@@ -1,4 +1,5 @@
 use crate::avro_data::{get_avro_data, AvroData};
+use crate::kafka_ssl::SslEnabler;
 use futures::stream::Stream;
 use log::{info, warn};
 use rdkafka::client::ClientContext;
@@ -65,15 +66,13 @@ pub fn consume(
                 Err(e) => warn!("Error while reading from stream: {:#?}", e),
                 Ok(Ok(m)) => {
                     match m.key_view::<str>() {
-                        Some(Ok(key)) => {
-                            match decoder.decode_with_name(m.payload()) {
-                                Ok(tuple) => match get_avro_data(tuple) {
-                                    Some(v) => processor.as_mut().process(String::from(key), v),
-                                    None => warn!("Could not get avro data"),
-                                },
-                                Err(e) => warn!("Error decoding value of record with error: {:?}", e),
-                            }
-                        }
+                        Some(Ok(key)) => match decoder.decode_with_name(m.payload()) {
+                            Ok(tuple) => match get_avro_data(tuple) {
+                                Some(v) => processor.as_mut().process(String::from(key), v),
+                                None => warn!("Could not get avro data"),
+                            },
+                            Err(e) => warn!("Error decoding value of record with error: {:?}", e),
+                        },
                         Some(Err(_)) => warn!("Message payload is not a string"),
                         None => warn!("No key"),
                     };
@@ -95,7 +94,8 @@ fn get_consumer(brokers: &str, group_id: &str, topic: &str) -> ProcessingConsume
         .set("statistics.interval.ms", "0")
         .set("fetch.error.backoff.ms", "1")
         .set("auto.offset.reset", "earliest")
-        .set_log_level(RDKafkaLogLevel::Info)
+        .set_log_level(RDKafkaLogLevel::Warning)
+        .optionally_set_ssl_from_env()
         .create_with_context(context)
         .expect("Consumer creation failed");
     consumer

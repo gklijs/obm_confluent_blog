@@ -5,6 +5,7 @@ mod avro_data;
 mod db;
 mod kafka_consumer;
 mod kafka_producer;
+mod kafka_ssl;
 mod logger;
 
 use crate::avro_data::{
@@ -58,9 +59,9 @@ fn handle_cac(
     let value = match cac.reason {
         None => AvroData::ACC(AccountCreationConfirmed {
             id: input.id,
-            iban: "".to_string(),
-            token: "".to_string(),
-            a_type: Atype::Auto,
+            iban: cac.iban.unwrap_or_default(),
+            token: cac.token.unwrap_or_default(),
+            a_type: input.a_type.clone(),
         }),
         Some(v) => AvroData::ACF(AccountCreationFailed {
             id: input.id,
@@ -129,9 +130,9 @@ fn send_bc(
 ) {
     let changed_by = if is_from { -cmt.amount } else { cmt.amount };
     let from_to = if is_from {
-        cmt.from.clone()
-    } else {
         cmt.to.clone()
+    } else {
+        cmt.from.clone()
     };
     let value = AvroData::BC(BalanceChanged {
         iban: balance.iban.clone(),

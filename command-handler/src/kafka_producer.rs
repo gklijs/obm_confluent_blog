@@ -1,13 +1,15 @@
-use crate::avro_data::AvroData;
+use crate::avro_data::{AvroData, SchemaName};
+use crate::kafka_ssl::SslEnabler;
 use futures::Future;
 use log::{info, warn};
-use rdkafka::config::ClientConfig;
+use rdkafka::config::{ClientConfig, RDKafkaLogLevel};
 use rdkafka::producer::{DeliveryFuture, FutureProducer, FutureRecord};
 use schema_registry_converter::schema_registry::SubjectNameStrategy;
 use schema_registry_converter::Encoder;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::{env, thread};
+use crate::kafka_consumer::CustomContext;
 
 pub struct RecordProducer {
     producer: FutureProducer,
@@ -17,8 +19,10 @@ pub struct RecordProducer {
 
 impl RecordProducer {
     pub fn send(&mut self, topic: &str, key: Option<&str>, value: AvroData) {
-        let strategy =
-            SubjectNameStrategy::TopicRecordNameStrategy(topic.to_string(), "TODO".to_string());
+        let strategy = SubjectNameStrategy::TopicRecordNameStrategy(
+            topic.to_string(),
+            value.get_full_schema_name(),
+        );
         let payload = match self.encoder.encode_struct(value, &strategy) {
             Ok(v) => v,
             Err(e) => panic!("Error getting payload: {}", e),
@@ -39,6 +43,7 @@ impl RecordProducer {
 }
 
 pub fn get_producer() -> RecordProducer {
+    let context = CustomContext;
     let brokers = match env::var("KAFKA_BROKERS") {
         Ok(val) => val,
         Err(_e) => "127.0.0.1:9092".to_string(),
@@ -50,6 +55,9 @@ pub fn get_producer() -> RecordProducer {
     let producer: FutureProducer = ClientConfig::new()
         .set("bootstrap.servers", brokers.as_str())
         .set("linger.ms", "100")
+        .set_log_level(RDKafkaLogLevel::Warning)
+        .optionally_set_ssl_from_env()
+        .create_with_context(context)
         .create()
         .expect("Producer creation error");
     let (sender, receiver) = mpsc::channel();

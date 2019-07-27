@@ -25,9 +25,15 @@ services:
       - command-generator
     environment:
       DATABASE_URL: postgres://rust_ch:open-bank@db:25432/balancedb
-      KAFKA_BROKERS: "kafka-1:19092,kafka-2:19094,kafka-3:19096"
+      KAFKA_BROKERS: "kafka-1:19093,kafka-2:19095,kafka-3:19097"
       SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
+      KAFKA_SSL_CA_LOCATION: "/etc/kafka/secrets/ca-root.crt"
+      KAFKA_SSL_CERT_LOCATION: "/etc/kafka/secrets/command-handler-signed.pem"
+      KAFKA_SSL_KEY_LOCATION: "/etc/kafka/secrets/command-handler.key"
+      KAFKA_SSL_KEY_PASSWORD: "openbanksafe"
     mem_limit: 300m
+    volumes:
+      - open-bank-certs:/etc/kafka/secrets
     restart: always
 
   heartbeat:

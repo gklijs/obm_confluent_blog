@@ -1,11 +1,19 @@
-use avro_rs::from_value;
 use avro_rs::schema::Name;
 use avro_rs::types::Value;
 use log::warn;
 use serde::{Deserialize, Serialize, Serializer};
 
+const OPEN_WEB_DATA_NAMESPACE: &str = "nl.openweb.data";
+const CAC_NAME: &str = "ConfirmAccountCreation";
+const ACC_NAME: &str = "AccountCreationConfirmed";
+const ACF_NAME: &str = "AccountCreationFailed";
+const CMT_NAME: &str = "ConfirmMoneyTransfer";
+const MTC_NAME: &str = "MoneyTransferConfirmed";
+const MTF_NAME: &str = "MoneyTransferFailed";
+const BC_NAME: &str = "BalanceChanged";
+
 pub trait SchemaName {
-    fn get_full_schema_name(&self) -> &'static str;
+    fn get_full_schema_name(&self) -> String;
     fn get_schema_name(&self) -> &'static str;
 }
 
@@ -15,6 +23,12 @@ pub enum Atype {
     Auto,
     #[serde(rename = "MANUAL")]
     Manual,
+}
+
+impl Default for Atype {
+    fn default() -> Self {
+        Atype::Auto
+    }
 }
 
 pub type Uuid = [u8; 16];
@@ -36,11 +50,11 @@ impl Default for ConfirmAccountCreation {
 }
 
 impl SchemaName for ConfirmAccountCreation {
-    fn get_full_schema_name(&self) -> &'static str {
-        "nl.openweb.data.ConfirmAccountCreation"
+    fn get_full_schema_name(&self) -> String {
+        format!("{}.{}", OPEN_WEB_DATA_NAMESPACE, CAC_NAME)
     }
     fn get_schema_name(&self) -> &'static str {
-        "ConfirmAccountCreation"
+        CAC_NAME
     }
 }
 
@@ -65,11 +79,11 @@ impl Default for AccountCreationConfirmed {
 }
 
 impl SchemaName for AccountCreationConfirmed {
-    fn get_full_schema_name(&self) -> &'static str {
-        "nl.openweb.data.AccountCreationConfirmed"
+    fn get_full_schema_name(&self) -> String {
+        format!("{}.{}", OPEN_WEB_DATA_NAMESPACE, ACC_NAME)
     }
     fn get_schema_name(&self) -> &'static str {
-        "AccountCreationConfirmed"
+        ACC_NAME
     }
 }
 
@@ -90,11 +104,11 @@ impl Default for AccountCreationFailed {
 }
 
 impl SchemaName for AccountCreationFailed {
-    fn get_full_schema_name(&self) -> &'static str {
-        "nl.openweb.data.AccountCreationFailed"
+    fn get_full_schema_name(&self) -> String {
+        format!("{}.{}", OPEN_WEB_DATA_NAMESPACE, ACF_NAME)
     }
     fn get_schema_name(&self) -> &'static str {
-        "AccountCreationFailed"
+        ACF_NAME
     }
 }
 
@@ -123,11 +137,11 @@ impl Default for ConfirmMoneyTransfer {
 }
 
 impl SchemaName for ConfirmMoneyTransfer {
-    fn get_full_schema_name(&self) -> &'static str {
-        "nl.openweb.data.ConfirmMoneyTransfer"
+    fn get_full_schema_name(&self) -> String {
+        format!("{}.{}", OPEN_WEB_DATA_NAMESPACE, CMT_NAME)
     }
     fn get_schema_name(&self) -> &'static str {
-        "ConfirmMoneyTransfer"
+        CMT_NAME
     }
 }
 
@@ -146,11 +160,11 @@ impl Default for MoneyTransferConfirmed {
 }
 
 impl SchemaName for MoneyTransferConfirmed {
-    fn get_full_schema_name(&self) -> &'static str {
-        "nl.openweb.data.MoneyTransferConfirmed"
+    fn get_full_schema_name(&self) -> String {
+        format!("{}.{}", OPEN_WEB_DATA_NAMESPACE, MTC_NAME)
     }
     fn get_schema_name(&self) -> &'static str {
-        "MoneyTransferConfirmed"
+        MTC_NAME
     }
 }
 
@@ -171,11 +185,11 @@ impl Default for MoneyTransferFailed {
 }
 
 impl SchemaName for MoneyTransferFailed {
-    fn get_full_schema_name(&self) -> &'static str {
-        "nl.openweb.data.MoneyTransferFailed"
+    fn get_full_schema_name(&self) -> String {
+        format!("{}.{}", OPEN_WEB_DATA_NAMESPACE, MTF_NAME)
     }
     fn get_schema_name(&self) -> &'static str {
-        "MoneyTransferFailed"
+        MTF_NAME
     }
 }
 
@@ -202,11 +216,11 @@ impl Default for BalanceChanged {
 }
 
 impl SchemaName for BalanceChanged {
-    fn get_full_schema_name(&self) -> &'static str {
-        "nl.openweb.data.BalanceChanged"
+    fn get_full_schema_name(&self) -> String {
+        format!("{}.{}", OPEN_WEB_DATA_NAMESPACE, BC_NAME)
     }
     fn get_schema_name(&self) -> &'static str {
-        "BalanceChanged"
+        BC_NAME
     }
 }
 
@@ -239,7 +253,7 @@ impl Serialize for AvroData {
 }
 
 impl SchemaName for AvroData {
-    fn get_full_schema_name(&self) -> &'static str {
+    fn get_full_schema_name(&self) -> String {
         match self {
             AvroData::CAC(v) => v.get_full_schema_name(),
             AvroData::ACC(v) => v.get_full_schema_name(),
@@ -264,73 +278,205 @@ impl SchemaName for AvroData {
     }
 }
 
+fn to_uuid(bytes: &[u8]) -> Uuid {
+    let mut array = [0; 16];
+    let bytes = &bytes[..array.len()]; // panics if not enough data
+    array.copy_from_slice(bytes);
+    array
+}
+
+fn to_cac(value: &Value) -> Option<AvroData> {
+    match value {
+        Value::Record(values) => {
+            let id = match &values[0] {
+                (_, Value::Fixed(16, id_value)) => to_uuid(&id_value),
+                _ => Uuid::default(),
+            };
+            let a_type = match &values[1] {
+                (_, Value::Enum(1, _)) => Atype::Manual,
+                _ => Atype::Auto,
+            };
+            Some(AvroData::CAC(ConfirmAccountCreation { id, a_type }))
+        }
+        _ => None,
+    }
+}
+
+fn to_acc(value: &Value) -> Option<AvroData> {
+    match value {
+        Value::Record(values) => {
+            let id = match &values[0] {
+                (_, Value::Fixed(16, id_value)) => to_uuid(&id_value),
+                _ => Uuid::default(),
+            };
+            let iban = match &values[1] {
+                (_, Value::String(v)) => v.clone(),
+                _ => String::default(),
+            };
+            let token = match &values[2] {
+                (_, Value::String(v)) => v.clone(),
+                _ => String::default(),
+            };
+            let a_type = match &values[3] {
+                (_, Value::Enum(1, _)) => Atype::Manual,
+                _ => Atype::Auto,
+            };
+            Some(AvroData::ACC(AccountCreationConfirmed {
+                id,
+                iban,
+                token,
+                a_type,
+            }))
+        }
+        _ => None,
+    }
+}
+
+fn to_acf(value: &Value) -> Option<AvroData> {
+    match value {
+        Value::Record(values) => {
+            let id = match &values[0] {
+                (_, Value::Fixed(16, id_value)) => to_uuid(&id_value),
+                _ => Uuid::default(),
+            };
+            let reason = match &values[1] {
+                (_, Value::String(v)) => v.clone(),
+                _ => String::default(),
+            };
+            Some(AvroData::ACF(AccountCreationFailed { id, reason }))
+        }
+        _ => None,
+    }
+}
+
+fn to_cmt(value: &Value) -> Option<AvroData> {
+    match value {
+        Value::Record(values) => {
+            let id = match &values[0] {
+                (_, Value::Fixed(16, id_value)) => to_uuid(&id_value),
+                _ => Uuid::default(),
+            };
+            let token = match &values[1] {
+                (_, Value::String(v)) => v.clone(),
+                _ => String::default(),
+            };
+            let amount = match &values[2] {
+                (_iban, Value::Long(v)) => *v,
+                _ => 0,
+            };
+            let from = match &values[3] {
+                (_, Value::String(v)) => v.clone(),
+                _ => String::default(),
+            };
+            let to = match &values[4] {
+                (_, Value::String(v)) => v.clone(),
+                _ => String::default(),
+            };
+            let description = match &values[5] {
+                (_, Value::String(v)) => v.clone(),
+                _ => String::default(),
+            };
+            Some(AvroData::CMT(ConfirmMoneyTransfer {
+                id,
+                token,
+                amount,
+                from,
+                to,
+                description,
+            }))
+        }
+        _ => None,
+    }
+}
+
+fn to_mtc(value: &Value) -> Option<AvroData> {
+    match value {
+        Value::Record(values) => {
+            let id = match &values[0] {
+                (_, Value::Fixed(16, id_value)) => to_uuid(&id_value),
+                _ => Uuid::default(),
+            };
+            Some(AvroData::MTC(MoneyTransferConfirmed { id }))
+        }
+        _ => None,
+    }
+}
+
+fn to_mtf(value: &Value) -> Option<AvroData> {
+    match value {
+        Value::Record(values) => {
+            let id = match &values[0] {
+                (_, Value::Fixed(16, id_value)) => to_uuid(&id_value),
+                _ => Uuid::default(),
+            };
+            let reason = match &values[1] {
+                (_, Value::String(v)) => v.clone(),
+                _ => String::default(),
+            };
+            Some(AvroData::MTF(MoneyTransferFailed { id, reason }))
+        }
+        _ => None,
+    }
+}
+
+fn to_bc(value: &Value) -> Option<AvroData> {
+    match value {
+        Value::Record(values) => {
+            let iban = match &values[0] {
+                (_, Value::String(v)) => v.clone(),
+                _ => String::default(),
+            };
+            let new_balance = match &values[1] {
+                (_iban, Value::Long(v)) => *v,
+                _ => 0,
+            };
+            let changed_by = match &values[2] {
+                (_iban, Value::Long(v)) => *v,
+                _ => 0,
+            };
+            let from_to = match &values[3] {
+                (_, Value::String(v)) => v.clone(),
+                _ => String::default(),
+            };
+            let description = match &values[4] {
+                (_, Value::String(v)) => v.clone(),
+                _ => String::default(),
+            };
+            Some(AvroData::BC(BalanceChanged {
+                iban,
+                new_balance,
+                changed_by,
+                from_to,
+                description,
+            }))
+        }
+        _ => None,
+    }
+}
+
 pub fn get_avro_data((name, value): (Name, Value)) -> Option<AvroData> {
     match name.namespace {
         Some(namespace) => match namespace.as_str() {
-            "nl.openweb.data" => match name.name.as_str() {
-                "ConfirmAccountCreation" => match from_value::<ConfirmAccountCreation>(&value) {
-                    Ok(v) => Some(AvroData::CAC(v)),
-                    Err(e) => {
-                        warn! ("error getting avro data from: {:?} error: {:?}", value, e);
-                        None
-                    }
-                },
-                "AccountCreationConfirmed" => {
-                    match from_value::<AccountCreationConfirmed>(&value) {
-                        Ok(v) => Some(AvroData::ACC(v)),
-                        Err(e) => {
-                            warn! ("error getting avro data from: {:?} error: {:?}", value, e);
-                            None
-                        }
-                    }
-                }
-                "AccountCreationFailed" => match from_value::<AccountCreationFailed>(&value) {
-                    Ok(v) => Some(AvroData::ACF(v)),
-                    Err(e) => {
-                        warn! ("error getting avro data from: {:?} error: {:?}", value, e);
-                        None
-                    }
-                },
-                "ConfirmMoneyTransfer" => match from_value::<ConfirmMoneyTransfer>(&value) {
-                    Ok(v) => Some(AvroData::CMT(v)),
-                    Err(e) => {
-                        warn! ("error getting avro data from: {:?} error: {:?}", value, e);
-                        None
-                    }
-                },
-                "MoneyTransferConfirmed" => match from_value::<MoneyTransferConfirmed>(&value) {
-                    Ok(v) => Some(AvroData::MTC(v)),
-                    Err(e) => {
-                        warn! ("error getting avro data from: {:?} error: {:?}", value, e);
-                        None
-                    }
-                },
-                "MoneyTransferFailed" => match from_value::<MoneyTransferFailed>(&value) {
-                    Ok(v) => Some(AvroData::MTF(v)),
-                    Err(e) => {
-                        warn! ("error getting avro data from: {:?} error: {:?}", value, e);
-                        None
-                    }
-                },
-                "BalanceChanged" => match from_value::<BalanceChanged>(&value) {
-                    Ok(v) => Some(AvroData::BC(v)),
-                    Err(e) => {
-                        warn! ("error getting avro data from: {:?} error: {:?}", value, e);
-                        None
-                    }
-                },
+            OPEN_WEB_DATA_NAMESPACE => match name.name.as_str() {
+                CAC_NAME => to_cac(&value),
+                ACC_NAME => to_acc(&value),
+                ACF_NAME => to_acf(&value),
+                CMT_NAME => to_cmt(&value),
+                MTC_NAME => to_mtc(&value),
+                MTF_NAME => to_mtf(&value),
+                BC_NAME => to_bc(&value),
                 other => {
-                    warn! ("unknown data type: {}", other);
+                    warn!("unknown data type: {}", other);
                     None
                 }
             },
             _ => {
-                warn! ("namespace is not 'nl.openweb.data' while that was expected");
+                warn!("namespace is not 'nl.openweb.data' while that was expected");
                 None
             }
         },
         None => {
-            warn! ("No namespace in data while that was expected");
+            warn!("No namespace in data while that was expected");
             None
         }
     }
@@ -342,9 +488,11 @@ mod tests {
 
     #[test]
     fn avro_to_from() {
-        let cac = ConfirmAccountCreation{
-            id: [204, 240, 237, 74, 227, 188, 75, 46, 183, 163, 122, 214, 178, 72, 118, 162],
-            a_type: Atype::Auto
+        let cac = ConfirmAccountCreation {
+            id: [
+                204, 240, 237, 74, 227, 188, 75, 46, 183, 163, 122, 214, 178, 72, 118, 162,
+            ],
+            a_type: Atype::Auto,
         };
         let serialized = avro_rs::to_value(&cac).unwrap();
         println!("serialized = {:?}", serialized);
@@ -356,9 +504,11 @@ mod tests {
 
     #[test]
     fn json_to_from() {
-        let cac = ConfirmAccountCreation{
-            id: [204, 240, 237, 74, 227, 188, 75, 46, 183, 163, 122, 214, 178, 72, 118, 162],
-            a_type: Atype::Auto
+        let cac = ConfirmAccountCreation {
+            id: [
+                204, 240, 237, 74, 227, 188, 75, 46, 183, 163, 122, 214, 178, 72, 118, 162,
+            ],
+            a_type: Atype::Auto,
         };
         let serialized = serde_json::to_string(&cac).unwrap();
         println!("serialized = {}", serialized);
