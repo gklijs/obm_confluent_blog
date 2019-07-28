@@ -14,7 +14,7 @@ services:
       SSL_PASSWORD: "openbanksafe"
     volumes:
       - open-bank-certs:/etc/kafka/secrets
-    mem_limit: 200m
+    mem_limit: 300m
     restart: always
 
   command-handler:
@@ -24,16 +24,10 @@ services:
     depends_on:
       - command-generator
     environment:
-      DB_PORT: "25432"
-      DB_HOSTNAME: "db"
-      KAFKA_BROKERS: "kafka-1:19093,kafka-2:19095,kafka-3:19097"
+      DATABASE_URL: postgres://rust_ch:open-bank@db:25432/balancedb
+      KAFKA_BROKERS: "kafka-1:19092,kafka-2:19094,kafka-3:19096"
       SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
-      SSL_KEYSTORE_LOCATION: "kafka.command-handler.keystore.jks"
-      SSL_TRUSTSTORE_LOCATION: "kafka.command-handler.truststore.jks"
-      SSL_PASSWORD: "openbanksafe"
-    volumes:
-      - open-bank-certs:/etc/kafka/secrets
-    mem_limit: 200m
+    mem_limit: 300m
     restart: always
 
   heartbeat:
@@ -69,7 +63,7 @@ services:
       SSL_PASSWORD: "openbanksafe"
     volumes:
       - open-bank-certs:/etc/kafka/secrets
-    mem_limit: 250m
+    mem_limit: 400m
     restart: always
 
   frontend:
