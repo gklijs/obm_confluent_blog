@@ -11,8 +11,8 @@ set -o nounset \
 openssl req -new -x509 -keyout ca-root.key -out ca-root.crt -days 101 -subj '/CN=ca.bank.openweb.nl/OU=TEST/O=Openweb/L=Nieuwegein/S=Utrecht/C=NL' -passin pass:openbanksafe -passout pass:openbanksafe
 
 # Standard OpenSSL keys for non JVM use
-openssl genrsa -des3 -passout "pass:openbanksafe" -out command-handler.key 2048
-openssl req -passin "pass:openbanksafe" -passout "pass:openbanksafe" -key command-handler.key -new -out command-handler.client.req -subj '/CN=command-handler/OU=TEST/O=Openweb/L=Nieuwegein/S=Utrecht/C=NL'
+openssl genrsa -out command-handler.key 2048
+openssl req -passin "pass:openbanksafe" -key command-handler.key -new -out command-handler.client.req -subj '/CN=command-handler/OU=TEST/O=Openweb/L=Nieuwegein/S=Utrecht/C=NL'
 openssl x509 -req -passin "pass:openbanksafe" -in command-handler.client.req -CA ca-root.crt -CAkey ca-root.key -CAserial ca-root.srl -out command-handler-signed.pem -days 100 -CAcreateserial
 
 docker volume create --name open-bank-certs
