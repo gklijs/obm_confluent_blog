@@ -154,6 +154,7 @@
         [:li [:a {:href "average-latency.html" :target "_blank"} "Avg latency"]]
         [:li [:a {:href "max-latency.html" :target "_blank"} "Max latency"]]
         [:li [:a {:href "min-latency.html" :target "_blank"} "Min latency"]]
+        [:li [:a {:href "99-latency.html" :target "_blank"} "99 percentile latency"]]
         [:li [:a {:href "min-count.html" :target "_blank"} "Heartbeats"]]
         [:li [:a {:href "average-db-cpu.html" :target "_blank"} "Avg db cpu"]]
         [:li [:a {:href "average-db-mem.html" :target "_blank"} "Avg db memory"]]

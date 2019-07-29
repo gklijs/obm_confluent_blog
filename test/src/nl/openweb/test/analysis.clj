@@ -1,5 +1,6 @@
 (ns nl.openweb.test.analysis
   (:require [kixi.stats.core :as kixi]
+            [kixi.stats.distribution :refer [quantile]]
             [oz.core :as oz]))
 
 (defn valid
@@ -14,6 +15,13 @@
        (filter #(valid % nth-in-row))
        (transduce (map #(nth % nth-in-row)) statistic)))
 
+(defn get-latency-percentile
+  [coll percentile]
+  (let [distribution (->> coll
+                          (filter #(valid % 2))
+                          (transduce (map #(nth % 2)) kixi/histogram))]
+    (quantile distribution percentile)))
+
 (defn vega-item [category [additional-load data-rows]]
   {
    :category        category
@@ -22,6 +30,7 @@
    :err-latency     (get-statistic data-rows 2 kixi/standard-error)
    :max-latency     (get-statistic data-rows 2 kixi/max)
    :min-latency     (get-statistic data-rows 2 kixi/min)
+   :99-latency      (get-latency-percentile data-rows 0.99)
    :min-count       (get-statistic data-rows 4 kixi/min)
    :average-db-cpu  (get-statistic data-rows 5 kixi/mean)
    :err-db-cpu      (get-statistic data-rows 5 kixi/standard-error)
@@ -52,8 +61,8 @@
     (group-by-load data-rows)
     (apply merge-with into (map group-by-load data-rows))))
 
-(defn data-rows->vega [language data-rows]
-  (map (partial vega-item language) (group data-rows)))
+(defn data-rows->vega [category data-rows]
+  (map (partial vega-item category) (group data-rows)))
 
 (defn raw->vega
   [data]
@@ -72,7 +81,8 @@
                                  :title y-title}
                          :color {:field "category"
                                  :type  "nominal"
-                                 :title category-name}}
+                                 :title category-name
+                                 :scale {"range" ["#008080" "#5082E6" "#D61C50" "#F26724"]}}}
               :mark     {:type  "line"
                          :point {:tooltip {:content "data"}}}
               }]})
@@ -88,7 +98,8 @@
                        :yError {:field y-err}
                        :color  {:field "category"
                                 :type  "nominal"
-                                :title category-name}}
+                                :title category-name
+                                :scale {"range" ["#008080" "#5082E6" "#D61C50" "#F26724"]}}}
             :mark     {:type "errorbar"}
             })))
 
@@ -103,6 +114,7 @@
 (def outputs {"average-latency" "Average latency (ms)"
               "max-latency"     "Max latency (ms)"
               "min-latency"     "Min latency (ms)"
+              "99-latency"      ".99 percentile latency (ms)"
               "min-count"       "Min count (heartbeats send)"
               "average-db-cpu"  "Average cpu database (% from total)"
               "average-db-mem"  "Average mem database (MiB)"

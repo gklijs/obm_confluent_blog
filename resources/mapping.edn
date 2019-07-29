@@ -1,4 +1,7 @@
 {
  :category-name "Language"
- :mapping {"Clojure" "clojure-*"}
+ :mapping {"Clojure" "clojure-ssl-*"
+           "Rust native" "rust-ssl-static-*"
+           "Rust async" "rust-ssl-async-*"
+           "Rust sync" "rust-ssl-sync-*"}
  }
