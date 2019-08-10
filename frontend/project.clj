@@ -6,16 +6,11 @@
                  [reagent "0.8.1"]
                  [re-frame "0.10.8"]
                  [re-graph "0.1.10"]]
-  :plugins [[lein-cljsbuild "1.1.5"]
-            [lein-sass "0.5.0"]]
+  :plugins [[lein-cljsbuild "1.1.5"]]
   :min-lein-version "2.5.3"
   :source-paths ["src/clj"]
-  :clean-targets ^{:protect false} ["resources/public/js/compiled" "target" "resources/public/css"]
+  :clean-targets ^{:protect false} ["resources/public/js/compiled" "target"]
   :figwheel {:css-dirs ["resources/public/css"]}
-  :sass {:src              "resources/app/stylesheets"
-         :output-directory "resources/public/css"
-         :source-maps      false
-         :command          :sassc}
   :profiles
   {:dev
    {:dependencies [[binaryage/devtools "0.9.10"]

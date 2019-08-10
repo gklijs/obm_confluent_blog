@@ -1,7 +1,8 @@
 (ns nl.openweb.test.analysis
   (:require [kixi.stats.core :as kixi]
             [kixi.stats.distribution :refer [quantile]]
-            [oz.core :as oz]))
+            [oz.core :as oz]
+            [clojure.string :as string]))
 
 (defn valid
   [row nth-in-row]
@@ -72,6 +73,8 @@
   ([vega-items category-name y-value y-title]
    {:width  500,
     :height 500,
+    :config {:legend {:titleFont "Roboto" :labelFont "Roboto"}
+             :axis   {:titleFont "Roboto" :labelFont "Roboto"}}
     :data   {:values vega-items}
     :layer  [{:encoding {:x     {:field "additional-load"
                                  :type  "quantitative"
@@ -103,13 +106,22 @@
             :mark     {:type "errorbar"}
             })))
 
+(defn remove-oz-http
+  [y-value]
+  (let [path (str "frontend/public/" y-value ".html")
+        current (slurp path)
+        new (string/replace current #"http://ozviz.io" "")]
+    (spit path new)
+    ))
+
 (defn to-html
   [vega-items category-name y-value y-title]
   (let [y-err (clojure.string/replace y-value #"average" "err")
         lp (if (= y-err y-value)
              (line-plot vega-items category-name y-value y-title)
              (line-plot vega-items category-name y-value y-title y-err))]
-    (oz/export! lp (str "frontend/public/" y-value ".html"))))
+    (oz/export! lp (str "frontend/public/" y-value ".html"))
+    (remove-oz-http y-value)))
 
 (def outputs {"average-latency" "Average latency (ms)"
               "max-latency"     "Max latency (ms)"
